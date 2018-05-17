@@ -1,6 +1,9 @@
 import numpy as np
-import pandas as pd
-from IPython.display import display 
+# import pandas as pd
+# from IPython.display import display 
+# from sklearn.metrics import fbeta_score, accuracy_score
+# from sklearn.model_selection import train_test_split
+# import pdb
 import impurity
 
 class cart_tree(object):
@@ -8,50 +11,63 @@ class cart_tree(object):
     def __init__(self):
         self.__lt = None
         self.__rt = None
-        self.__depth = None
+        self.__depth = 0
         self.__feature = None
         self.__branch_condition = None
         self.__label = None
-        self.__size = None
+        self.__size = 0
         
-    def fit(self, data, label_col, stop_depth=None , stop_impurity=None, stop_num=None):
+    def fit(self, data, label_col, stop_depth=-1 , stop_impurity=None, stop_num=None):
         self.fit_with_depth(data, 1, label_col, stop_depth, stop_impurity, stop_num)
     
-    def fit_with_depth(self, data, depth, label_col, stop_depth=None , stop_impurity=None, stop_num=None):  
+    def fit_with_depth(self, data, depth, label_col, stop_depth=-1 , stop_impurity=None, stop_num=None):  
+        
+#         print 'fit_with_depth'
+        
         labels = data[label_col]
                 
         # stop growing when impurity is enough
-        if (impurity.gini(labels) < stop_impurity):
+        if (impurity.gini(data, 'income') < stop_impurity):
+#             print 'a'
             self._stop_proc(depth, data, label_col)
             return
         # stop growing when depth is enouph
-        if (stop_depth is not None and self.__depth + 1 >= depth):
+        if (stop_depth > 0 and depth + 1 >= stop_depth):
+#             print 'b'
             self._stop_proc(depth, data, label_col)
             return
         # stop when sample size is less than given value 
         if (np.size(labels) <= stop_num):
+#             print 'c'
             self._stop_proc(depth, data, label_col)
-            return
+            return        
+        # stop when data is empty
+        if data.empty:
+#             print 'd'
+            self._stop_proc(depth, data, label_col)
+            return     
         
         self.__depth = depth
         self.__label = self._get_node_label(data, label_col)
         self.__feature, self.__branch_condition  = self._get_branch(data, label_col)
         
         # stop growing if one of the son nodes is empty
-        if (0 == np.size(data[[self.__feature] == self.__branch_condition]) or 0 == np.size(data[[self.__feature] != self.__branch_condition])):
+        if (data[data[self.__feature] == self.__branch_condition].empty) or (data[data[self.__feature] != self.__branch_condition].empty):
             self.__lt = None
             self.__rt = None
             self.__size = 1
-            return
+#             print 'e'
+            return        
                     
         self.__lt = cart_tree()
         self.__rt = cart_tree()        
-        self.__lt.fit(data[[self.__feature] == self.__branch_condition], self.__depth+1, label_col, stop_depth , stop_impurity, stop_num)
-        self.__rt.fit(data[[self.__feature] != self.__branch_condition], self.__depth+1, label_col, stop_depth , stop_impurity, stop_num)           
-        self.__size = self.__lt.size() + self.__rt.size()
+        self.__lt.fit_with_depth(data[data[self.__feature] == self.__branch_condition], self.__depth+1, label_col, stop_depth , stop_impurity, stop_num)
+        self.__rt.fit_with_depth(data[data[self.__feature] != self.__branch_condition], self.__depth+1, label_col, stop_depth , stop_impurity, stop_num)           
+        self.__size = self.__lt.size + self.__rt.size
+#         print self.__size
      
-    def predict(self, X):             
-        return [self.line_predict(line) for line in X]
+    def predict(self, X):                     
+        return [self.line_predict(row) for index, row in X.iterrows()]
             
     def line_predict(self, x):
         if (None == self.__lt or None == self.__rt):
@@ -63,28 +79,30 @@ class cart_tree(object):
             return self.__rt.line_predict(x)
                             
     def _get_branch(self, data, label_col):    
-        features = data.drop([label_col, 'age', 'education-num', 'capital-gain', 'capital-loss', 'hours-per-week'], axis = 1) 
+        features = data.drop([label_col], axis = 1) 
 
         self_feature = '1'
         self_branch_condition = '1'
-        mini_gini = 1
+        mini_gini = 100
 
         for feature in features.keys():
-            feature_value_dict = {}
+            feature_value_dict = {}        
+            
             for feature_value in data[feature]:
-                print feature_value_dict
-
-                if feature_value in feature_value_dict:
+                if feature_value_dict.has_key(feature_value):
                     continue
                 else:
                     feature_value_dict[feature_value] = 1
                     temp_gini = impurity.gini_divide(data, feature, feature_value, label_col)
+                    
+                    
                     if temp_gini < mini_gini:
                         self_feature = feature
                         self_branch_condition = feature_value
                         mini_gini = temp_gini
                     else:
-                        pass
+                        pass                    
+                    
         return self_feature, self_branch_condition
                     
     def _get_node_label(self, data, label_col):
@@ -116,16 +134,16 @@ class cart_tree(object):
     
     @property
     def size(self):
-        return self._size
+        return self.__size
+    
+    def print_size(self):
+        print self.__size
         
     @property
     def lt(self):
-        return self._lt
+        return self.__lt
     
     @property
     def rt(self):
-        return self._rt
+        return self.__rt
 
-
-    
-    

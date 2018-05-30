@@ -1,9 +1,8 @@
+'''
+Created on 2018年5月16日
+@author: glorythesky
+'''
 import numpy as np
-# import pandas as pd
-# from IPython.display import display 
-# from sklearn.metrics import fbeta_score, accuracy_score
-# from sklearn.model_selection import train_test_split
-# import pdb
 import impurity
 
 class cart_tree(object):
@@ -20,43 +19,35 @@ class cart_tree(object):
     def fit(self, data, label_col, stop_depth=-1 , stop_impurity=None, stop_num=None):
         self.fit_with_depth(data, 1, label_col, stop_depth, stop_impurity, stop_num)
     
-    def fit_with_depth(self, data, depth, label_col, stop_depth=-1 , stop_impurity=None, stop_num=None):  
-        
-#         print 'fit_with_depth'
-        
+    def fit_with_depth(self, data, depth, label_col, stop_depth=-1 , stop_impurity=None, stop_num=None):          
         labels = data[label_col]
                 
         # stop growing when impurity is enough
-        if (impurity.gini(data, 'income') < stop_impurity):
-#             print 'a'
+        if (impurity.gini(data, label_col) < stop_impurity):
             self._stop_proc(depth, data, label_col)
             return
         # stop growing when depth is enouph
         if (stop_depth > 0 and depth + 1 >= stop_depth):
-#             print 'b'
             self._stop_proc(depth, data, label_col)
             return
         # stop when sample size is less than given value 
         if (np.size(labels) <= stop_num):
-#             print 'c'
             self._stop_proc(depth, data, label_col)
             return        
         # stop when data is empty
         if data.empty:
-#             print 'd'
             self._stop_proc(depth, data, label_col)
             return     
         
         self.__depth = depth
         self.__label = self._get_node_label(data, label_col)
-        self.__feature, self.__branch_condition  = self._get_branch(data, label_col)
+        self.__feature, self.__branch_condition  = self._get_node_divide_feature_and_its_divide_point(data, label_col)
         
         # stop growing if one of the son nodes is empty
         if (data[data[self.__feature] == self.__branch_condition].empty) or (data[data[self.__feature] != self.__branch_condition].empty):
             self.__lt = None
             self.__rt = None
             self.__size = 1
-#             print 'e'
             return        
                     
         self.__lt = cart_tree()
@@ -64,7 +55,6 @@ class cart_tree(object):
         self.__lt.fit_with_depth(data[data[self.__feature] == self.__branch_condition], self.__depth+1, label_col, stop_depth , stop_impurity, stop_num)
         self.__rt.fit_with_depth(data[data[self.__feature] != self.__branch_condition], self.__depth+1, label_col, stop_depth , stop_impurity, stop_num)           
         self.__size = self.__lt.size + self.__rt.size
-#         print self.__size
      
     def predict(self, X):                     
         return [self.line_predict(row) for index, row in X.iterrows()]
@@ -78,11 +68,12 @@ class cart_tree(object):
         else:
             return self.__rt.line_predict(x)
                             
-    def _get_branch(self, data, label_col):    
+    def _get_node_divide_feature_and_its_divide_point(self, data, label_col):  
+        '''number of features is N, types of every feature is M, number of data is D
+         time complexity is N * M * D'''  
         features = data.drop([label_col], axis = 1) 
-
-        self_feature = '1'
-        self_branch_condition = '1'
+        self_feature = ''
+        self_branch_condition = ''
         mini_gini = 100
 
         for feature in features.keys():
@@ -94,8 +85,7 @@ class cart_tree(object):
                 else:
                     feature_value_dict[feature_value] = 1
                     temp_gini = impurity.gini_divide(data, feature, feature_value, label_col)
-                    
-                    
+                                        
                     if temp_gini < mini_gini:
                         self_feature = feature
                         self_branch_condition = feature_value
@@ -106,6 +96,8 @@ class cart_tree(object):
         return self_feature, self_branch_condition
                     
     def _get_node_label(self, data, label_col):
+        '''data is N, types of label is M
+         time complexity is N'''
         labels = data[label_col]
         label_num_dict = {}
         for label in labels:
@@ -130,14 +122,10 @@ class cart_tree(object):
         self.__label = self._get_node_label(data, label_col)
         self.__size = 1
         return 
-    
-    
+        
     @property
     def size(self):
         return self.__size
-    
-    def print_size(self):
-        print self.__size
         
     @property
     def lt(self):

@@ -5,6 +5,8 @@ Created on 2018年5月16日
 import numpy as np
 
 def gini(data,label_col):
+    '''data is N, types of label is M
+     time complexity is N. extra space comlexity is M'''
     labels = data[label_col]
     total_size = np.size(labels)
     if (0 == total_size):
@@ -18,6 +20,8 @@ def gini(data,label_col):
     return 1 - np.sum([ (float(value) / float(total_size))**2 for key,value in label_num_dict.items() ])
     
 def gini_divide(data, feature, branch_condition, label_col):
+    '''data is N, types of label is M
+    time complexity is N, extra space comlexity is 1'''
     labels = data[label_col]
     total_size = np.size(labels)
     if (0 == total_size):
